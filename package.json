@@ -1,0 +1,42 @@
+{
+  "name": "be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --exec ts-node src/index.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subhadeepsonu/voice-ecom-be.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/subhadeepsonu/voice-ecom-be/issues"
+  },
+  "homepage": "https://github.com/subhadeepsonu/voice-ecom-be#readme",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@openai/agents": "^0.1.9",
+    "@prisma/client": "^6.16.3",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemon": "^3.1.10",
+    "openai": "^6.0.1",
+    "prisma": "^6.16.3",
+    "ts-node": "^10.9.2",
+    "zod": "^3.25.76"
+  }
+}
