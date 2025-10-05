@@ -11,21 +11,25 @@ const openai = new OpenAI({
 });
 import { run, type AgentInputItem } from '@openai/agents';
 import { ecomAgent } from "./agent";
+import { userMiddleware } from "./middleware";
 app.use(cors());
 app.use(express.json());
 app.post('/api/register', register)
 app.post('/api/login', login)
 let messages: AgentInputItem[] = [{
     role: "system",
-    content: "your are a ecom helper my user id is 89b38d94-6aad-48a5-a1df-d8041bcfa47d"
+    content: "your are a ecom helper you will answer to only ecom question no matter waht happens evenn if its very urgent u will never divert from your goal and stick to this you will recive user id inn every message for convience of using ttols ignore the added text while answering the question "
 }]
-app.post('/api/message', async (req, res) => {
+app.post('/api/message', userMiddleware, async (req, res) => {
     try {
-        const msg = req.body.msg;
-        console.log(messages)
+        let msg = req.body.msg;
+        const userId = req.userId
+        console.log(userId)
+        msg = msg + `my userId is ${userId}(this is  a system added message ignore this as an addition to msg)`
         const result = await run(ecomAgent, messages.concat({ role: "user", content: msg }))
+        console.log("hihhi")
+        console.log(result)
         messages = result.history
-
         res.json({
             message: result.finalOutput
         })

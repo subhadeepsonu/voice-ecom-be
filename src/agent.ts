@@ -1,9 +1,11 @@
-import { Agent, run, tool } from '@openai/agents';
+import { Agent, tool } from '@openai/agents';
 import dotenv from "dotenv"
 import { getCatgory, getBrands, getProduct, getCategoryId, getBrandId, getProductById } from './tools/product';
 import z from 'zod';
 import { AddToCart, RemoveFromCart, GetMyCart } from './tools/cart';
 import { CreateOrder, getOrderById, getOrders } from './tools/order';
+import { CartComponentPropsSchema } from './types/cart';
+import { productMessageSchema } from './types/product';
 dotenv.config()
 const getCategoriesTool = tool({
     name: "getCategories",
@@ -74,7 +76,6 @@ const addToCartTool = tool({
     async execute({ userId, productId, quantity }) {
         return await AddToCart(userId, productId, quantity)
     }
-
 })
 const removeFromCartTool = tool({
     name: "removeFromCart",
@@ -125,12 +126,40 @@ const getOrderByIdTool = tool({
         return await getOrderById(id)
     }
 })
-const tools = [getCategoriesTool, getBrandsTool, getProductTool, getProductByIdTool, getCategoryIdTool, getBrandIdTool, addToCartTool, removeFromCartTool, getMyCartTool, createOrderTool, getOrdersTool, getOrderByIdTool]
-export const ecomAgent = new Agent({
+
+
+const productAgent = new Agent({
+    name: "find product agent",
+    instructions: "you are a agent who can find products by using tools you can find products based on brand and categories",
+    model: "gpt-4o-mini",
+    outputType: productMessageSchema,
+    tools: [getProductTool, getProductByIdTool, getCategoryIdTool, getBrandIdTool, getBrandsTool, getCategoriesTool]
+})
+
+const productAgentTool = productAgent.asTool({
+    toolName: "product agent tool",
+    toolDescription: "get products required to add to cart if cant find any dont add them"
+})
+
+const orderAgent = new Agent({
+    name: "order agent",
+    instructions: "you are a agent who can order items and track the orders status if your are asked to add anything to cart  search for the product id using product agent tool ",
+    model: "gpt-4o-mini",
+    tools: [getOrderByIdTool, getOrdersTool, createOrderTool, productAgentTool],
+})
+
+const cartAgent = new Agent({
+    name: "cart agent",
+    instructions: "you are a cart agent who has access to cart tools who can add/remove items from cart and show current cart",
+    model: "gpt-4o-mini",
+    outputType: CartComponentPropsSchema,
+    tools: [addToCartTool, removeFromCartTool, getMyCartTool, productAgentTool]
+})
+export const ecomAgent = Agent.create({
     name: 'Assistant',
     instructions: 'You are a helpful assistant',
-    model: "gpt-4o",
-    tools: tools
+    model: "gpt-4o-mini",
+    handoffs: [productAgent, orderAgent, cartAgent]
 });
 
 
