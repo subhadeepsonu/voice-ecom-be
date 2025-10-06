@@ -5,8 +5,6 @@ export const ProductCardPropsSchema = z.object({
     name: z.string(),
     description: z.string(),
     price: z.string(),
-    categoryId: z.string(),
-    brandId: z.string(),
     imageUrl: z.string().optional().nullable(),
 });
 

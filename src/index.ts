@@ -12,6 +12,7 @@ const openai = new OpenAI({
 import { run, type AgentInputItem } from '@openai/agents';
 import { ecomAgent } from "./agent";
 import { userMiddleware } from "./middleware";
+import { AddProduct } from "./product/product.controller";
 app.use(cors());
 app.use(express.json());
 app.post('/api/register', register)
@@ -27,8 +28,6 @@ app.post('/api/message', userMiddleware, async (req, res) => {
         console.log(userId)
         msg = msg + `my userId is ${userId}(this is  a system added message ignore this as an addition to msg)`
         const result = await run(ecomAgent, messages.concat({ role: "user", content: msg }))
-        console.log("hihhi")
-        console.log(result)
         messages = result.history
         res.json({
             message: result.finalOutput
@@ -41,70 +40,7 @@ app.post('/api/message', userMiddleware, async (req, res) => {
         return
     }
 })
-
-function webToNodeStream(webStream: ReadableStream<Uint8Array>): Readable {
-    const reader = webStream.getReader();
-    return new Readable({
-        async read() {
-            try {
-                const { done, value } = await reader.read();
-                if (done) {
-                    this.push(null);
-                } else {
-                    this.push(Buffer.from(value));
-                }
-            } catch (err) {
-                this.destroy(err as Error);
-            }
-        }
-    });
-}
-
-app.post('/api/tts', async (req, res) => {
-    try {
-        const { text, voice = 'alloy', model = 'tts-1' } = req.body;
-
-        if (!text) {
-            return res.status(400).json({ error: 'Text is required' });
-        }
-
-        console.log('Generating speech for:', text.substring(0, 50) + '...');
-
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Transfer-Encoding', 'chunked');
-        res.setHeader('Cache-Control', 'no-cache');
-
-        const response = await openai.audio.speech.create({
-            model: model,
-            voice: voice,
-            input: text,
-            response_format: 'mp3'
-        });
-
-        const nodeStream = webToNodeStream(response.body);
-
-        nodeStream.on('error', (err) => {
-            console.error('Stream error:', err);
-            if (!res.headersSent) {
-                res.status(500).json({ error: 'Stream error' });
-            }
-        });
-
-        nodeStream.pipe(res);
-
-    } catch (err: any) {
-        console.error('TTS error:', err);
-        if (!res.headersSent) {
-            res.status(500).json({ error: err.message });
-        }
-    }
-});
-
-app.get('/api/voices', (req, res) => {
-    res.json({
-        voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
-    });
-});
+app.post("/api/product", userMiddleware, AddProduct)
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

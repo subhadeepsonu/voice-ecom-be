@@ -60,6 +60,7 @@ export async function login(req: Request, res: Response) {
         if (!isPasswordValid) {
             return res.status(400).json({ error: "Invalid password" })
         }
+        console.log(user.id)
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!)
         return res.status(200).json({ token })
     } catch (error) {

@@ -1,40 +1,33 @@
 import { Agent, tool } from '@openai/agents';
 import dotenv from "dotenv"
-import { getCatgory, getBrands, getProduct, getCategoryId, getBrandId, getProductById } from './tools/product';
+import { getAllProducts, getProduct, getProductById } from './tools/product';
 import z from 'zod';
 import { AddToCart, RemoveFromCart, GetMyCart } from './tools/cart';
 import { CreateOrder, getOrderById, getOrders } from './tools/order';
 import { CartComponentPropsSchema } from './types/cart';
 import { productMessageSchema } from './types/product';
 dotenv.config()
-const getCategoriesTool = tool({
-    name: "getCategories",
-    description: "Get all categories",
-    parameters: z.object({}),
-    async execute() {
-        return await getCatgory()
+
+const searchProductTool = tool({
+    name: "search product",
+    description: "use this tool form vector search in products",
+    parameters: z.object({
+        name: z.string(),
+    }),
+    async execute({ name }) {
+        return await getProduct(name)
     }
 })
-const getBrandsTool = tool({
-    name: "getBrands",
-    description: "Get all brands",
-    parameters: z.object({}),
-    async execute() {
-        return await getBrands()
-    }
-})
+
 const getProductTool = tool({
     name: "getProduct",
-    description: "Get all products",
-    parameters: z.object({
-        name: z.string().optional().nullable(),
-        categoryId: z.string().optional().nullable(),
-        brandId: z.string().optional().nullable(),
-    }),
-    async execute({ name, categoryId, brandId }) {
-        return await getProduct(name, categoryId, brandId)
+    description: "use this tool form vector search in products",
+    parameters: z.object({}),
+    async execute() {
+        return await getAllProducts()
     }
 })
+
 const getProductByIdTool = tool({
     name: "getProductById",
     description: "Get a product by id",
@@ -45,26 +38,7 @@ const getProductByIdTool = tool({
         return await getProductById(id)
     }
 })
-const getCategoryIdTool = tool({
-    name: "getCategoryId",
-    description: "Get a category by id",
-    parameters: z.object({
-        id: z.string(),
-    }),
-    async execute({ id }) {
-        return await getCategoryId(id)
-    }
-})
-const getBrandIdTool = tool({
-    name: "getBrandId",
-    description: "Get a brand by id",
-    parameters: z.object({
-        id: z.string(),
-    }),
-    async execute({ id }) {
-        return await getBrandId(id)
-    }
-})
+
 const addToCartTool = tool({
     name: "addToCart",
     description: "Add a product to cart",
@@ -133,7 +107,7 @@ const productAgent = new Agent({
     instructions: "you are a agent who can find products by using tools you can find products based on brand and categories",
     model: "gpt-4o-mini",
     outputType: productMessageSchema,
-    tools: [getProductTool, getProductByIdTool, getCategoryIdTool, getBrandIdTool, getBrandsTool, getCategoriesTool]
+    tools: [getProductTool, getProductByIdTool, searchProductTool]
 })
 
 const productAgentTool = productAgent.asTool({
@@ -145,6 +119,7 @@ const orderAgent = new Agent({
     name: "order agent",
     instructions: "you are a agent who can order items and track the orders status if your are asked to add anything to cart  search for the product id using product agent tool ",
     model: "gpt-4o-mini",
+    outputType: CartComponentPropsSchema,
     tools: [getOrderByIdTool, getOrdersTool, createOrderTool, productAgentTool],
 })
 

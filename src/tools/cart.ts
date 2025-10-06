@@ -2,6 +2,7 @@ import { prisma } from "../db"
 
 export async function AddToCart(userId: string, productId: string, quantity: number) {
     try {
+
         const cart = await prisma.cart.findUnique({
             where: {
                 userId: userId
@@ -10,6 +11,7 @@ export async function AddToCart(userId: string, productId: string, quantity: num
                 cartItem: true
             }
         })
+        console.log(cart)
         if (!cart) {
             return "Cart not found"
         }
@@ -28,6 +30,7 @@ export async function AddToCart(userId: string, productId: string, quantity: num
 }
 export async function RemoveFromCart(userId: string, productId: string) {
     try {
+        console.log(userId)
         const cart = await prisma.cart.findUnique({
             where: {
                 userId: userId
@@ -52,6 +55,7 @@ export async function RemoveFromCart(userId: string, productId: string) {
 }
 export async function GetMyCart(userId: string) {
     try {
+        console.log(userId)
         const cart = await prisma.cart.findUnique({
             where: {
                 userId: userId
@@ -64,6 +68,7 @@ export async function GetMyCart(userId: string) {
                 }
             }
         })
+        console.log(cart)
         return cart
     } catch (error) {
         return error

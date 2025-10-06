@@ -19,31 +19,12 @@ model products {
   id          String       @id @default(uuid())
   name        String
   description String
-  price       String
-  categoryId  String
-  brandId     String
-  brand       brand        @relation(fields: [brandId], references: [id])
-  category    category     @relation(fields: [categoryId], references: [id])
+  price       Int
+  imgUrl      String
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   orderItems  orderItems[]
   cartItems   cartItems[]
-}
-
-model category {
-  id        String     @id @default(uuid())
-  name      String
-  products  products[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model brand {
-  id        String     @id @default(uuid())
-  name      String
-  products  products[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
 }
 
 model cart {
