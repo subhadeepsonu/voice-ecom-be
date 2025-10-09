@@ -1,16 +1,10 @@
-import z from "zod"
 import { Response, Request } from "express"
 import { prisma } from "../db"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
-const registerSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(8)
-})
-const loginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(8)
-})
+import { forgotPasswordSchema, loginSchema, registerSchema, resetPasswordSchema } from "../validators/auth.validator"
+import { sendVerificationEmail } from "../utils/mail"
+
 export async function register(req: Request, res: Response) {
     try {
         const { success, data } = registerSchema.safeParse(req.body)
@@ -23,12 +17,13 @@ export async function register(req: Request, res: Response) {
         if (checkUser) {
             return res.status(400).json({ error: "User already exists" })
         }
-        const { email, password } = data
+        const { name, email, password } = data
         const hashedPassword = await bcrypt.hash(password, 10)
         const user = await prisma.user.create({
             data: {
                 email,
-                password: hashedPassword
+                password: hashedPassword,
+                name
             }
         })
         await prisma.cart.create({
@@ -36,6 +31,8 @@ export async function register(req: Request, res: Response) {
                 userId: user.id
             }
         })
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!)
+        await sendVerificationEmail(user.email, token, "Verify your email")
         return res.status(200).json({ message: "User registered successfully" })
 
     } catch (error) {
@@ -63,6 +60,106 @@ export async function login(req: Request, res: Response) {
         console.log(user.id)
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!)
         return res.status(200).json({ token })
+    } catch (error) {
+        return res.status(500).json({ error: "Something went wrong" })
+    }
+}
+
+export async function VerifyUser(req: Request, res: Response) {
+    try {
+        const token = req.query.token as string
+        if (!token) {
+            res.status(400).json({ error: "Invalid token" })
+            return
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId }
+        })
+        if (!user) {
+            res.status(400).json({ error: "User not found" })
+            return
+        }
+        if (user.isVerified) {
+            res.status(400).json({ error: "User already verified" })
+            return
+        }
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { isVerified: true }
+        })
+        res.status(200).json({ message: "User verified successfully" })
+        return
+    } catch (error) {
+        res.status(500).json({ error: "Something went wrong" })
+        return
+    }
+}
+
+
+export async function verifyToken(req: Request, res: Response) {
+    try {
+        const authHeader = req.headers.authorization
+        if (!authHeader) {
+            return res.status(401).json({ error: "Unauthorized" })
+        }
+        const token = authHeader.split(" ")[1]
+        if (!token) {
+            return res.status(401).json({ error: "Unauthorized" })
+        }
+        jwt.verify(token, process.env.JWT_SECRET!, (err, decoded) => {
+            if (err) {
+                return res.status(401).json({ error: "Unauthorized" })
+            }
+            return res.status(200).json({ message: "Token is valid" })
+        })
+    } catch (error) {
+        return res.status(500).json({ error: "Something went wrong" })
+    }
+}
+
+export async function ForgotPassword(req: Request, res: Response) {
+    try {
+        const body = req.body
+        const { success, data } = forgotPasswordSchema.safeParse(body)
+        if (!success) {
+            return res.status(400).json({ error: "Invalid request" })
+        }
+        const { email } = data
+        const user = await prisma.user.findUnique({
+            where: { email }
+        })
+        if (!user) {
+            return res.status(400).json({ error: "User not found" })
+        }
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' })
+        await sendVerificationEmail(user.email, token, "Reset your password")
+        return res.status(200).json({ message: "Password reset email sent" })
+    } catch (error) {
+        return res.status(500).json({ error: "Something went wrong" })
+    }
+}
+export async function ResetPassword(req: Request, res: Response) {
+    try {
+        const body = req.body
+        const { success, data } = resetPasswordSchema.safeParse(body)
+        if (!success) {
+            return res.status(400).json({ error: "Invalid request" })
+        }
+        const { token, newPassword } = data
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.userId }
+        })
+        if (!user) {
+            return res.status(400).json({ error: "User not found" })
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { password: hashedPassword }
+        })
+        return res.status(200).json({ message: "Password reset successfully" })
     } catch (error) {
         return res.status(500).json({ error: "Something went wrong" })
     }

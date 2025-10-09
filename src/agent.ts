@@ -6,6 +6,7 @@ import { AddToCart, RemoveFromCart, GetMyCart } from './tools/cart';
 import { CreateOrder, getOrderById, getOrders } from './tools/order';
 import { CartComponentPropsSchema } from './types/cart';
 import { productMessageSchema } from './types/product';
+import { OrderComponentPropsSchema } from './types/order';
 dotenv.config()
 
 const searchProductTool = tool({
@@ -104,7 +105,7 @@ const getOrderByIdTool = tool({
 
 const productAgent = new Agent({
     name: "find product agent",
-    instructions: "you are a agent who can find products by using tools you can find products based on brand and categories",
+    instructions: "you are a agent who can find products by using tools ",
     model: "gpt-4o-mini",
     outputType: productMessageSchema,
     tools: [getProductTool, getProductByIdTool, searchProductTool]
@@ -115,26 +116,42 @@ const productAgentTool = productAgent.asTool({
     toolDescription: "get products required to add to cart if cant find any dont add them"
 })
 
-const orderAgent = new Agent({
-    name: "order agent",
-    instructions: "you are a agent who can order items and track the orders status if your are asked to add anything to cart  search for the product id using product agent tool ",
-    model: "gpt-4o-mini",
-    outputType: CartComponentPropsSchema,
-    tools: [getOrderByIdTool, getOrdersTool, createOrderTool, productAgentTool],
-})
+
+
 
 const cartAgent = new Agent({
     name: "cart agent",
-    instructions: "you are a cart agent who has access to cart tools who can add/remove items from cart and show current cart",
+    instructions: "you are a cart agent who has access to cart tools who can add/remove items from cart and show current cart you will ",
     model: "gpt-4o-mini",
     outputType: CartComponentPropsSchema,
     tools: [addToCartTool, removeFromCartTool, getMyCartTool, productAgentTool]
 })
+const cartAgentTool = cartAgent.asTool({
+    toolName: "cart agent tool",
+    toolDescription: "add/remove/get items from cart"
+})
+const orderAgent = new Agent({
+    name: "order agent",
+    instructions: "you are a agent who can order items and track the orders status if your are asked to add anything to cart  search for the product id using product agent tool ",
+    model: "gpt-4o-mini",
+    outputType: OrderComponentPropsSchema,
+    tools: [getOrderByIdTool, getOrdersTool, createOrderTool, productAgentTool, cartAgentTool],
+})
+
+const generalAgent = new Agent({
+    name: "ecom assistent",
+    instructions: "you are  a ecom assistent you will only answer to ecom realted questions",
+    model: "gpt-4o-mini",
+    outputType: z.object({
+        messageType: z.enum(["Text"]),
+        message: z.string(),
+    })
+})
 export const ecomAgent = Agent.create({
     name: 'Assistant',
-    instructions: 'You are a helpful assistant',
+    instructions: 'You are a helpful assistant all ways handoff to a different  agent no matter what the question is never answer by yours efl ',
     model: "gpt-4o-mini",
-    handoffs: [productAgent, orderAgent, cartAgent]
+    handoffs: [productAgent, orderAgent, cartAgent, generalAgent]
 });
 
 

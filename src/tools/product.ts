@@ -12,10 +12,10 @@ export async function getProduct(name: string) {
             collectionName: "learning",
         });
         const resp = await vectorStore.similaritySearchWithScore(name)
-        const filterred = resp.filter(([document, score]) => {
-            return score > 0.3
-        })
-        return filterred
+        const filtered = resp
+            .filter(([_, score]) => score > 0.3)
+            .map(([document]) => document.metadata);
+        return filtered
     } catch (error) {
         console.error("Error fetching products:", error);
         throw new Error("Something went wrong while fetching products");
