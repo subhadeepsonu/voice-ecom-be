@@ -12,30 +12,41 @@ export async function register(req: Request, res: Response) {
             return res.status(400).json({ error: "Invalid request" })
         }
         const checkUser = await prisma.user.findUnique({
-            where: { email: data.email }
+            where: { email: data.email, isVerified: true }
         })
         if (checkUser) {
             return res.status(400).json({ error: "User already exists" })
         }
         const { name, email, password } = data
         const hashedPassword = await bcrypt.hash(password, 10)
-        const user = await prisma.user.create({
-            data: {
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: {
+                password: hashedPassword,
+                name,
+                isVerified: false
+            },
+            create: {
                 email,
                 password: hashedPassword,
                 name
             }
         })
-        await prisma.cart.create({
-            data: {
+        await prisma.cart.upsert({
+            where: { userId: user.id },
+            update: {
+                userId: user.id
+            },
+            create: {
                 userId: user.id
             }
         })
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!)
-        await sendVerificationEmail(user.email, token, "Verify your email")
+        await sendVerificationEmail(user.email, token, "Verify your email", "verification")
         return res.status(200).json({ message: "User registered successfully" })
 
     } catch (error) {
+        console.error("Error registering user:", error)
         return res.status(500).json({ error: "Something went wrong" })
     }
 
@@ -67,7 +78,7 @@ export async function login(req: Request, res: Response) {
 
 export async function VerifyUser(req: Request, res: Response) {
     try {
-        const token = req.query.token as string
+        const { token } = req.body
         if (!token) {
             res.status(400).json({ error: "Invalid token" })
             return
@@ -133,7 +144,7 @@ export async function ForgotPassword(req: Request, res: Response) {
             return res.status(400).json({ error: "User not found" })
         }
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '1h' })
-        await sendVerificationEmail(user.email, token, "Reset your password")
+        await sendVerificationEmail(user.email, token, "Reset your password", "reset")
         return res.status(200).json({ message: "Password reset email sent" })
     } catch (error) {
         return res.status(500).json({ error: "Something went wrong" })
@@ -146,7 +157,7 @@ export async function ResetPassword(req: Request, res: Response) {
         if (!success) {
             return res.status(400).json({ error: "Invalid request" })
         }
-        const { token, newPassword } = data
+        const { token, password } = data
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId }
@@ -154,7 +165,7 @@ export async function ResetPassword(req: Request, res: Response) {
         if (!user) {
             return res.status(400).json({ error: "User not found" })
         }
-        const hashedPassword = await bcrypt.hash(newPassword, 10)
+        const hashedPassword = await bcrypt.hash(password, 10)
         await prisma.user.update({
             where: { id: user.id },
             data: { password: hashedPassword }
